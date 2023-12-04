@@ -1,2 +1,5 @@
 # unsplash-to-fb-page
-a Python Flask app that downloads a photo from unsplash + posts it to a Facebook page
+a Python Flask app that downloads a photo from [Unsplash](https://unsplash.com/) + posts it to a Facebook page
+
+The app uses the [python-unsplash library](https://github.com/yakupadakli/python-unsplash)
+and the  [python-unsplash library](https://developers.facebook.com/docs/pages/getting-started).
