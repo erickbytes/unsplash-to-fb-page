@@ -11,8 +11,9 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 app = Flask(__name__)
 
+
 @app.route("/")
-def unsplash_to_facebook_page():
+def unsplash_to_fb_page():
     """This renders the home page of the app and triggers other functions that post
     the download url to a Facebook page."""
     result = query_photo_in_db(photo_id)
@@ -21,11 +22,17 @@ def unsplash_to_facebook_page():
         return redirect(url_for("confirmation_page"))
     status = fb_post_status()
     if status != "Too soon.":
-        # if it's time to make a post, route to home page.
+        # if it's time to make a post, run unsplash and fb functions.
         photo_id = random_unsplash_photo()
         access_token = get_token_from_db()
         download_url, status_code, response = facebook_page_post(photo_id, access_token)
-        record_tuple = (photo_id, download_url, str(datetime.now()), status_code, response)
+        record_tuple = (
+            photo_id,
+            download_url,
+            str(datetime.now()),
+            status_code,
+            response,
+        )
         add_photo_to_db(record_tuple)
         if status_code == 400:
             return "Facebook post failed."
@@ -65,16 +72,16 @@ def facebook_page_post(photo_id, access_token):
 
     Photos should be less than 4 MB and saved as JPG, PNG, GIF, TIFF or will not be uploaded (400 error)
     """
+    logging.info("Making new FB post...")
+    page_id = "your_page_id"
     try:
-        logging.info("Making new FB post...")
-        page_id = "your_page_id"
         download_url = unsplash_photo_download_url(photo_id)
         url = f"https://graph.facebook.com/{page_id}/photos?url={download_url}&access_token={access_token}"
         r = requests.post(url)
         logging.info(r.text)
         logging.info(r.status_code)
         logging.info("Requested new FB post...")
-        # fetch new token and retry posting if 403 forbidden
+        # Fetch new token and retry posting if 403 forbidden.
         if "Error validating access token" in r.text:
             access_token = sixty_day_token()
             add_token_to_db(access_token)
@@ -96,8 +103,7 @@ def facebook_page_post(photo_id, access_token):
 
 
 def random_unsplash_photo():
-    """Python-Unsplash library Github:
-    https://github.com/yakupadakli/python-unsplash
+    """Python-Unsplash library Github: https://github.com/yakupadakli/python-unsplash
 
     collection ids
     "Positive Thoughts Daily" = 66610223
@@ -109,7 +115,7 @@ def random_unsplash_photo():
     code = ""
     auth = Auth(client_id, client_secret, redirect_uri, code=code)
     api = Api(auth)
-    # Returns a python list containing a class.
+    # Returns a Python list containing a class.
     photo = api.photo.random(collections=your_collection_id)
     photo_id = photo[0].id
     return photo_id
@@ -176,7 +182,7 @@ def query_photo_in_db(photo_id):
     finally:
         if conn.is_connected():
             conn.close()
-        return "mysql DB connection closed."
+        return "MySQL connection is closed"
 
 
 def fb_post_status():
