@@ -11,7 +11,7 @@ import sys
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 app = Flask(__name__)
 
-
+@app.route("/")
 def index():
     photo_id = random_unsplash_photo()
     result = query_photo_in_db(photo_id)
@@ -22,15 +22,36 @@ def index():
     access_token = get_token_from_db()
     download_url, status_code, response = facebook_page_post(photo_id, access_token)
     if status_code == 400:
-        return redirect(url_for("get_quote?l=es"))
+        return "Facebook post failed"
     record_tuple = (photo_id, download_url, str(datetime.now()), status_code, response)
     add_photo_to_db(record_tuple)
-    # status = fb_post_status()
-    # if status != "Too soon.":
-    #     # if it's time to make a post, route to home page.
-    #     print("stuff")
-    #     #return redirect(url_for("positivipy"))
+    status = fb_post_status()
+    if status != "Too soon.":
+        # if it's time to make a post, route to home page.
+        return redirect(url_for("confirmation_page"))
+    html_page = """<html><head><link rel='stylesheet' href="/static/styles/styles.css">
+                    <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
+                    <Title>Auto Facebook Page Poster</Title></head>
+                    <body>
+                    <div class="form">
+                    <form action="/get_best_tacos" method="post">
+                    <label for="zipcode">Enter your zip code for tacos near you!</label>
+                    <input type="text" id ="zipcode" name="zipcode">
+                    <input type="image" id="taco" src="/static/iStock-1084361584.jpg" border="0" alt="Submit" />
+                    </form></div></body></html>"""
+    return html_page
     return None
+
+
+@app.route("/confirmation_page", methods=["GET", "POST"])
+def confirmation_page():
+    """Renders the HTML form to ask for the user's zip code."""
+    html_page = """<html><head><link rel='stylesheet' href="/static/styles/styles.css">
+                    <link rel="shortcut icon" type="image/x-icon" href="/static/tacofavicon.ico">
+                    <Title>Facebook Post Status</Title></head>
+                    <body>
+                    <p>Your page post has been sent.</p></body></html>"""
+    return html_page
 
 
 def random_unsplash_photo():
@@ -54,9 +75,10 @@ def random_unsplash_photo():
 
 
 def unsplash_photo_download_url(photo_id):
-    """`Call the Unsplash API to get download url for photo.
+    """Call the Unsplash API to get download url for photo.
     Accepts: photo id
-    Returns: photo download url"""
+    Returns: photo download url
+    """
     client_id = "client_id"
     r = requests.get(
         url=f"https://api.unsplash.com/photos/{photo_id}/download?client_id={client_id}"
@@ -117,8 +139,8 @@ def query_photo_in_db(photo_id):
 
 
 def fb_post_status():
-    """check how long it's been since the last post
-    returns status --> str: message to indicate if a new fb post should be made"""
+    """Check how long it's been since the last FB page post.
+    Returns status --> str: message to indicate if a new fb post should be made."""
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
@@ -155,8 +177,7 @@ def page_access_token():
 
 
 def sixty_day_token():
-    """
-    This token gets this message when used:
+    """This token gets this message when used:
 
     {"error":{"message":"Unsupported post request. Object with ID '123456789' does not exist,
     cannot be loaded due to missing permissions, or does not support this operation.
@@ -204,8 +225,8 @@ def add_token_to_db(access_token):
 
 
 def get_token_from_db():
-    """fetch last token retrieved from db
-    returns token --> str: message to indicate if a new fb post should be made"""
+    """Fetch last token retrieved from db. Returns token --> str: message to
+    indicate if a new fb post should be made"""
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
@@ -225,8 +246,7 @@ def get_token_from_db():
 
 
 def facebook_page_post(photo_id, access_token):
-    """
-    Post a new image from unsplash to FB.
+    """Post a new image from unsplash to FB.
 
     accepts --> photo_id, str
     1) get download link with unsplash
@@ -236,7 +256,7 @@ def facebook_page_post(photo_id, access_token):
     FB API Resources
     "Getting Started": https://developers.facebook.com/docs/pages/getting-started
     "Explorer": https://developers.facebook.com/tools/explorer
-    app dashboard: https://developers.facebook.com/apps/1298367833837715/dashboard/
+    app dashboard: https://developers.facebook.com/apps/your_app_id/dashboard/
     permissions reference: https://developers.facebook.com/docs/permissions/reference
     debugging tokens: https://developers.facebook.com/docs/facebook-login/access-tokens/debugging-and-error-handling/
     publishing: https://developers.facebook.com/docs/pages/publishing/
