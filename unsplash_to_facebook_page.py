@@ -17,12 +17,12 @@ def index():
     result = query_photo_in_db(photo_id)
     if result == "Do not post.":
         logging.info(f"Post aborted for photo id {photo_id}, already posted.")
-        return redirect(url_for("get_quote"))
+        return redirect(url_for("confirmation_page"))
     access_token = page_access_token()
     access_token = get_token_from_db()
     download_url, status_code, response = facebook_page_post(photo_id, access_token)
     if status_code == 400:
-        return "Facebook post failed"
+        return "Facebook post failed."
     record_tuple = (photo_id, download_url, str(datetime.now()), status_code, response)
     add_photo_to_db(record_tuple)
     status = fb_post_status()
@@ -40,7 +40,7 @@ def index():
 def confirmation_page():
     """Renders the HTML form to ask for the user's zip code."""
     html_page = """<html><head><link rel='stylesheet' href="/static/styles/styles.css">
-                    <link rel="shortcut icon" type="image/x-icon" href="/static/tacofavicon.ico">
+                    <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
                     <Title>Facebook Post Status</Title></head>
                     <body>
                     <p>Your page post has been sent.</p></body></html>"""
