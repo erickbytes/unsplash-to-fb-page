@@ -38,7 +38,7 @@ def index():
 
 @app.route("/confirmation_page", methods=["GET", "POST"])
 def confirmation_page():
-    """Renders the HTML form to ask for the user's zip code."""
+    """Renders a blank HTML page with a message."""
     html_page = """<html><head><link rel='stylesheet' href="/static/styles/styles.css">
                     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
                     <Title>Facebook Post Status</Title></head>
@@ -164,7 +164,7 @@ def fb_post_status():
 
 
 def page_access_token():
-    """this long lived token retrieved with curl on 1/15/2022, Good for 60 days"""
+    """This long lived token was retrieved with curl, good for 60 days."""
     long_token = "your_long_lived_token"
     return long_token
 
