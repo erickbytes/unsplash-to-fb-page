@@ -14,17 +14,14 @@ app = Flask(__name__)
 
 @app.route("/")
 def unsplash_to_fb_page():
-    """This renders the home page of the app and triggers other functions that post
+    """Renders the home page of the app and triggers other functions that post
     the download url to a Facebook page."""
-    result = query_photo_in_db(photo_id)
-    if result == "Do not post.":
-        logging.info(f"Post skipped, recent post confirmed.")
-        return redirect(url_for("confirmation_page"))
+    # Check time since last FB post on the page.
     status = fb_post_status()
     if status != "Too soon.":
-        # if it's time to make a post, run unsplash and fb functions.
+        # if it's time to make a post, run Unsplash and FB functions.
         photo_id = random_unsplash_photo()
-        access_token = get_token_from_db()
+        access_token = token_from_db()
         download_url, status_code, response = facebook_page_post(photo_id, access_token)
         record_tuple = (
             photo_id,
@@ -39,7 +36,7 @@ def unsplash_to_fb_page():
     html_page = """<html><head><link rel='stylesheet' href="/static/styles/styles.css">
                     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
                     <Title>Auto Facebook Page Poster</Title></head>
-                    <body><H1>Posting Your Facebook Post...</H1></body></html>"""
+                    <body><H1>Checking on Your Facebook Post...</H1></body></html>"""
     return html_page
 
 
@@ -102,6 +99,38 @@ def facebook_page_post(photo_id, access_token):
         logging.exception("Failed to make new Facebook post.")
 
 
+def fb_post_status():
+    """Check how long it's been since the last FB page post.
+    Returns status --> str: message to indicate if a new fb post should be made."""
+    try:
+        conn = mysql.connector.connect(
+            host="user.mysql.pythonanywhere-services.com",
+            db="user$database",
+            user="user_name",
+            password="password",
+        )
+        photos_df = pd.read_sql(sql="""SELECT * FROM Photos""", con=conn)
+        delta = datetime.now() - pd.to_datetime(photos_df.date).max()
+        logging.info(f"days since last post: {delta.days}")
+        hours_since_last_post = delta.seconds / 3600
+        posts_number = photos_df.shape[0]
+        if conn.is_connected():
+            conn.close()
+        if photos_df.empty:
+            return "Ok to send."
+        elif int(delta.days) == 0:
+            logging.info("Too soon to post again.")
+            return "Too soon."
+        elif list(photos_df.status_code)[-1] != 200:
+            return "Ok to send."
+        else:
+            return "Too soon."
+    except mysql.connector.Error as error:
+        logging.info("Failed to insert into MySQL table {}".format(error))
+    except:
+        logging.exception("Error inserting records to DB.")
+
+
 def random_unsplash_photo():
     """Python-Unsplash library Github: https://github.com/yakupadakli/python-unsplash
 
@@ -138,8 +167,8 @@ def unsplash_photo_download_url(photo_id):
 
 
 def add_photo_to_db(record_tuple):
-    """Pass data as SQL parameters with mysql tto add photo from Unsplash API to DB.
-    accepts: list of tuples for 5 columns"""
+    """Pass data as SQL parameters with mysql to add photo from Unsplash API to DB.
+    Accepts: list of tuples for 5 columns"""
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
@@ -185,38 +214,6 @@ def query_photo_in_db(photo_id):
         return "MySQL connection is closed"
 
 
-def fb_post_status():
-    """Check how long it's been since the last FB page post.
-    Returns status --> str: message to indicate if a new fb post should be made."""
-    try:
-        conn = mysql.connector.connect(
-            host="user.mysql.pythonanywhere-services.com",
-            db="user$database",
-            user="user_name",
-            password="password",
-        )
-        photos_df = pd.read_sql(sql="""SELECT * FROM Photos""", con=conn)
-        delta = datetime.now() - pd.to_datetime(photos_df.date).max()
-        logging.info(f"days since last post: {delta.days}")
-        hours_since_last_post = delta.seconds / 3600
-        posts_number = photos_df.shape[0]
-        if conn.is_connected():
-            conn.close()
-        if photos_df.empty:
-            return "Ok to send."
-        elif int(delta.days) == 0:
-            logging.info("Too soon to post again.")
-            return "Too soon."
-        elif list(photos_df.status_code)[-1] != 200:
-            return "Ok to send."
-        else:
-            return "Too soon."
-    except mysql.connector.Error as error:
-        logging.info("Failed to insert into MySQL table {}".format(error))
-    except:
-        logging.exception("Error inserting records to DB.")
-
-
 def page_access_token():
     """This long lived token was retrieved with curl, good for 60 days."""
     long_token = "your_long_lived_token"
@@ -247,7 +244,7 @@ def sixty_day_token():
 
 def add_token_to_db(access_token):
     """Pass data as SQL parameters with mysql to add photo from Unsplash API to DB.
-    accepts: list of tuples for 2 columns"""
+    Accepts: list of tuples for 2 columns"""
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
@@ -271,9 +268,8 @@ def add_token_to_db(access_token):
         return "MySQL connection is closed"
 
 
-def get_token_from_db():
-    """Fetch last token retrieved from db. Returns token --> str: message to
-    indicate if a new fb post should be made"""
+def token_from_db():
+    """Fetch last token added to the DB. Returns token, str."""
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
