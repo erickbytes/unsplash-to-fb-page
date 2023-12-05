@@ -12,25 +12,23 @@ logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 app = Flask(__name__)
 
 @app.route("/")
-def index():
+def unsplash_to_facebook_page():
     """This renders the home page of the app and triggers other functions that post
     the download url to a Facebook page."""
-    photo_id = random_unsplash_photo()
     result = query_photo_in_db(photo_id)
     if result == "Do not post.":
-        logging.info(f"Post aborted for photo id {photo_id}, already posted.")
+        logging.info(f"Post skipped, recent post confirmed.")
         return redirect(url_for("confirmation_page"))
-    access_token = page_access_token()
-    access_token = get_token_from_db()
-    download_url, status_code, response = facebook_page_post(photo_id, access_token)
-    if status_code == 400:
-        return "Facebook post failed."
-    record_tuple = (photo_id, download_url, str(datetime.now()), status_code, response)
-    add_photo_to_db(record_tuple)
     status = fb_post_status()
     if status != "Too soon.":
         # if it's time to make a post, route to home page.
-        return redirect(url_for("confirmation_page"))
+        photo_id = random_unsplash_photo()
+        access_token = get_token_from_db()
+        download_url, status_code, response = facebook_page_post(photo_id, access_token)
+        record_tuple = (photo_id, download_url, str(datetime.now()), status_code, response)
+        add_photo_to_db(record_tuple)
+        if status_code == 400:
+            return "Facebook post failed."
     html_page = """<html><head><link rel='stylesheet' href="/static/styles/styles.css">
                     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
                     <Title>Auto Facebook Page Poster</Title></head>
