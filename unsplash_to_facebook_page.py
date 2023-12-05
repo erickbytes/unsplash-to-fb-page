@@ -32,15 +32,8 @@ def index():
     html_page = """<html><head><link rel='stylesheet' href="/static/styles/styles.css">
                     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
                     <Title>Auto Facebook Page Poster</Title></head>
-                    <body>
-                    <div class="form">
-                    <form action="/get_best_tacos" method="post">
-                    <label for="zipcode">Enter your zip code for tacos near you!</label>
-                    <input type="text" id ="zipcode" name="zipcode">
-                    <input type="image" id="taco" src="/static/iStock-1084361584.jpg" border="0" alt="Submit" />
-                    </form></div></body></html>"""
+                    <body><H1>Posting Your Facebook Post...</H1></body></html>"""
     return html_page
-    return None
 
 
 @app.route("/confirmation_page", methods=["GET", "POST"])
