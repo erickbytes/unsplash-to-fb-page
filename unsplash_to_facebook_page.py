@@ -2,7 +2,7 @@ from unsplash.api import Api
 from unsplash.auth import Auth
 from datetime import datetime
 import pandas as pd
-from flask import Flask, url_for, redirect
+from flask import Flask
 import requests
 import logging
 import mysql.connector
@@ -17,7 +17,7 @@ def unsplash_to_fb_page():
     """Renders the home page of the app and triggers other functions that post
     the download url to a Facebook page."""
     # Check time since last FB post on the page.
-    status = fb_post_status()
+    status = post_status()
     if status != "Too soon.":
         # if it's time to make a post, run Unsplash and FB functions.
         photo_id = random_unsplash_photo()
@@ -99,9 +99,11 @@ def facebook_page_post(photo_id, access_token):
         logging.exception("Failed to make new Facebook post.")
 
 
-def fb_post_status():
+def post_status():
     """Check how long it's been since the last FB page post.
-    Returns status --> str: message to indicate if a new fb post should be made."""
+    Returns status --> str: message to indicate if a new FB post should be made.
+    If 0 days have elapsed since a post has been made, do not post, return 'Too Soon.'
+    """
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
@@ -135,8 +137,7 @@ def random_unsplash_photo():
     """Python-Unsplash library Github: https://github.com/yakupadakli/python-unsplash
 
     collection ids
-    "Positive Thoughts Daily" = 66610223
-    "Past Posts" = 32132785
+    "Positive Thoughts Daily": 66610223, "Past Posts": 32132785
     """
     client_id = "client_id"
     client_secret = "client_secret"
