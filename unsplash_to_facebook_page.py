@@ -13,6 +13,8 @@ app = Flask(__name__)
 
 @app.route("/")
 def index():
+    """This renders the home page of the app and triggers other functions that post
+    the download url to a Facebook page."""
     photo_id = random_unsplash_photo()
     result = query_photo_in_db(photo_id)
     if result == "Do not post.":
@@ -47,6 +49,54 @@ def confirmation_page():
     return html_page
 
 
+def facebook_page_post(photo_id, access_token):
+    """Post a new image from unsplash to FB.
+
+    accepts --> photo_id, str
+    1) get download link with unsplash
+    2) use the facebook api to post to page
+    returns --> download_url: photo download url, unsplash API status code
+
+    FB API Resources
+    "Getting Started": https://developers.facebook.com/docs/pages/getting-started
+    "Explorer": https://developers.facebook.com/tools/explorer
+    app dashboard: https://developers.facebook.com/apps/your_app_id/dashboard/
+    permissions reference: https://developers.facebook.com/docs/permissions/reference
+    debugging tokens: https://developers.facebook.com/docs/facebook-login/access-tokens/debugging-and-error-handling/
+    publishing: https://developers.facebook.com/docs/pages/publishing/
+
+    Photos should be less than 4 MB and saved as JPG, PNG, GIF, TIFF or will not be uploaded (400 error)
+    """
+    try:
+        logging.info("Making new FB post...")
+        page_id = "your_page_id"
+        download_url = unsplash_photo_download_url(photo_id)
+        url = f"https://graph.facebook.com/{page_id}/photos?url={download_url}&access_token={access_token}"
+        r = requests.post(url)
+        logging.info(r.text)
+        logging.info(r.status_code)
+        logging.info("Requested new FB post...")
+        # fetch new token and retry posting if 403 forbidden
+        if "Error validating access token" in r.text:
+            access_token = sixty_day_token()
+            add_token_to_db(access_token)
+            download_url, status_code, text = facebook_page_post(photo_id, access_token)
+            return download_url, status_code, text
+        if "should be less than 4 MB and saved as JPG, PNG, GIF, TIFF" in r.text:
+            record_tuple = (
+                photo_id,
+                download_url,
+                str(datetime.now()),
+                r.status_code,
+                r.text,
+            )
+            add_photo_to_db(record_tuple)
+            return download_url, r.status_code, r.text
+        return download_url, r.status_code, r.text
+    except:
+        logging.exception("Failed to make new Facebook post.")
+
+
 def random_unsplash_photo():
     """Python-Unsplash library Github:
     https://github.com/yakupadakli/python-unsplash
@@ -61,7 +111,7 @@ def random_unsplash_photo():
     code = ""
     auth = Auth(client_id, client_secret, redirect_uri, code=code)
     api = Api(auth)
-    # returns a python list containing a class
+    # Returns a python list containing a class.
     photo = api.photo.random(collections=your_collection_id)
     photo_id = photo[0].id
     return photo_id
@@ -85,7 +135,7 @@ def unsplash_photo_download_url(photo_id):
 
 def add_photo_to_db(record_tuple):
     """Pass data as SQL parameters with mysql tto add photo from Unsplash API to DB.
-    accepts: list of tuples for 4 columns"""
+    accepts: list of tuples for 5 columns"""
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
@@ -109,7 +159,7 @@ def add_photo_to_db(record_tuple):
 
 
 def query_photo_in_db(photo_id):
-    """prevent duplicate posts by checking table named 'Photos'--> photos_df: pandas dataframe"""
+    """Prevent duplicate posts by checking table named 'Photos'--> photos_df: pandas dataframe"""
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
@@ -192,8 +242,8 @@ def sixty_day_token():
 
 
 def add_token_to_db(access_token):
-    """Pass data as SQL parameters with mysql tto add photo from Unsplash API to DB.
-    accepts: list of tuples for 4 columns"""
+    """Pass data as SQL parameters with mysql to add photo from Unsplash API to DB.
+    accepts: list of tuples for 2 columns"""
     try:
         conn = mysql.connector.connect(
             host="user.mysql.pythonanywhere-services.com",
@@ -236,51 +286,3 @@ def get_token_from_db():
         logging.info("Failed to insert into MySQL table {}".format(error))
     except:
         logging.exception("Error inserting records to DB.")
-
-
-def facebook_page_post(photo_id, access_token):
-    """Post a new image from unsplash to FB.
-
-    accepts --> photo_id, str
-    1) get download link with unsplash
-    2) use the facebook api to post to page
-    returns --> download_url: photo download url, unsplash API status code
-
-    FB API Resources
-    "Getting Started": https://developers.facebook.com/docs/pages/getting-started
-    "Explorer": https://developers.facebook.com/tools/explorer
-    app dashboard: https://developers.facebook.com/apps/your_app_id/dashboard/
-    permissions reference: https://developers.facebook.com/docs/permissions/reference
-    debugging tokens: https://developers.facebook.com/docs/facebook-login/access-tokens/debugging-and-error-handling/
-    publishing: https://developers.facebook.com/docs/pages/publishing/
-
-    Photos should be less than 4 MB and saved as JPG, PNG, GIF, TIFF or will not be uploaded (400 error)
-    """
-    try:
-        logging.info("Making new FB post...")
-        page_id = "your_page_id"
-        download_url = unsplash_photo_download_url(photo_id)
-        url = f"https://graph.facebook.com/{page_id}/photos?url={download_url}&access_token={access_token}"
-        r = requests.post(url)
-        logging.info(r.text)
-        logging.info(r.status_code)
-        logging.info("Requested new FB post...")
-        # fetch new token and retry posting if 403 forbidden
-        if "Error validating access token" in r.text:
-            access_token = sixty_day_token()
-            add_token_to_db(access_token)
-            download_url, status_code, text = facebook_page_post(photo_id, access_token)
-            return download_url, status_code, text
-        if "should be less than 4 MB and saved as JPG, PNG, GIF, TIFF" in r.text:
-            record_tuple = (
-                photo_id,
-                download_url,
-                str(datetime.now()),
-                r.status_code,
-                r.text,
-            )
-            add_photo_to_db(record_tuple)
-            return download_url, r.status_code, r.text
-        return download_url, r.status_code, r.text
-    except:
-        logging.exception("Failed to make new Facebook post.")
